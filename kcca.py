@@ -2,6 +2,25 @@ import numpy
 from numpy import dot, eye, ones
 import scipy.linalg
 
+class DiagGaussianKernel(object):
+    def __init__(self, sigma=1.0):
+        """
+        Initialise object with given value of sigma >= 0
+
+        :param sigma: kernel width parameter.
+        :type sigma: :class:`float`
+        """
+        self.sigma = sigma
+    
+    def __call__(self, X1, X2):
+
+        #if X1.shape[1] != X2.shape[1]:
+                    #raise ValueError("Invalid matrix dimentions: " + str(X1.shape) + " " + str(X2.shape))
+                
+        K = numpy.exp(- numpy.sum( (X1-X2)**2, 1)/(2*self.sigma**2))
+        K = numpy.array(K, ndmin=2).T
+        return K
+
 class GaussianKernel(object):
     """
     A class to find gaussian kernel evaluations k(x, y) = exp (-||x - y||^2/2 sigma^2)
@@ -80,6 +99,9 @@ class LinearKernel(PolyKernel):
         super(LinearKernel, self).__init__(0, 1)
     
 class KCCA(object):
+    """An implementation of Kernel Canonical Correlation Analysis. 
+    
+    """
     def __init__(self, kernel1, kernel2, regularization, method = 'kettering_method'):
         self.kernel1 = kernel1
         self.kernel2 = kernel2
@@ -182,6 +204,13 @@ class KCCA(object):
         return self
     
     def transform(self, X1 = None, X2 = None):
+        """
+        
+        Features centering taken from:
+        Scholkopf, B., Smola, A., & Muller, K. R. (1998).
+        Nonlinear component analysis as a kernel eigenvalue problem.
+        Neural computation, 10(5), 1299-1319.
+        """
         rets = []
         if X1 is not None:
             Ktest = self.kernel1(X1, self.trainX1)            
@@ -191,10 +220,7 @@ class KCCA(object):
             ones_m = ones((M, M))
             ones_mp = ones((L, M)) / M
             
-            #taken from:
-            # Scholkopf, B., Smola, A., & Muller, K. R. (1998).
-            # Nonlinear component analysis as a kernel eigenvalue problem.
-            # Neural computation, 10(5), 1299-1319.
+            #features centering
             K1 = (Ktest - dot(ones_mp, K)
                   - dot(Ktest, ones_m) + dot(dot(ones_mp, K), ones_m)
                   )
@@ -209,11 +235,8 @@ class KCCA(object):
             L, M = Ktest.shape
             ones_m = ones((M, M))
             ones_mp = ones((L, M)) / M
-            
-            #taken from:
-            # Scholkopf, B., Smola, A., & Muller, K. R. (1998).
-            # Nonlinear component analysis as a kernel eigenvalue problem.
-            # Neural computation, 10(5), 1299-1319.
+
+            #features centering
             K2 = (Ktest - dot(ones_mp, K)
                   - dot(Ktest, ones_m) + dot(dot(ones_mp, K), ones_m)
                   )

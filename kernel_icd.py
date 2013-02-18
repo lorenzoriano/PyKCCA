@@ -73,12 +73,3 @@ def kernel_icd(X, kernel, m = None, precision = 1e-6):
     G = G[ind, :]
     return G
 
-if __name__ == "__main__":
-    set_printoptions(precision=4, suppress=True)
-    import kcca
-    kernel = kcca.DiagGaussianKernel(1.0)
-
-    x1 = np.random.rand(500,20)
-
-    G = kernel_icd(x1, kernel, 10)
-    print G

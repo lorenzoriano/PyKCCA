@@ -4,101 +4,7 @@ import scipy.linalg
 
 from kernel_icd import kernel_icd
 
-class DiagGaussianKernel(object):
-    def __init__(self, sigma=1.0):
-        """
-        Initialise object with given value of sigma >= 0
 
-        :param sigma: kernel width parameter.
-        :type sigma: :class:`float`
-        """
-        self.sigma = sigma
-    
-    def __call__(self, X1, X2):
-
-        #if X1.shape[1] != X2.shape[1]:
-                    #raise ValueError("Invalid matrix dimentions: " + str(X1.shape) + " " + str(X2.shape))
-                
-        K = numpy.exp(- numpy.sum( (X1-X2)**2, 1)/(2*self.sigma**2))
-        K = numpy.array(K, ndmin=2).T
-        return K
-
-class GaussianKernel(object):
-    """
-    A class to find gaussian kernel evaluations k(x, y) = exp (-||x - y||^2/2 sigma^2)
-    """
-    def __init__(self, sigma=1.0):
-        """
-        Initialise object with given value of sigma >= 0
-
-        :param sigma: kernel width parameter.
-        :type sigma: :class:`float`
-        """
-        self.sigma = sigma
-
-    def __call__(self, X1, X2):
-        """
-        Find kernel evaluation between two matrices X1 and X2 whose rows are
-        examples and have an identical number of columns.
-
-
-        :param X1: First set of examples.
-        :type X1: :class:`numpy.ndarray`
-
-        :param X2: Second set of examples.
-        :type X2: :class:`numpy.ndarray`
-        """
-        
-        if X1.shape[1] != X2.shape[1]:
-            raise ValueError("Invalid matrix dimentions: " + str(X1.shape) + " " + str(X2.shape))
-
-        j1 = ones((X1.shape[0], 1))
-        j2 = ones((X2.shape[0], 1))
-
-        diagK1 = numpy.sum(X1**2, 1)
-        diagK2 = numpy.sum(X2**2, 1)
-
-        X1X2 = dot(X1, X2.T)
-
-        Q = (2*X1X2 - numpy.outer(diagK1, j2) - numpy.outer(j1, diagK2) )/ (2*self.sigma**2)
-
-        return numpy.exp(Q)
-
-    def __str__(self):
-        return "GaussianKernel: sigma = " + str(self.sigma)
-
-class PolyKernel(object):
-    """
-    A class to find linear kernel evaluations k(x, y) = <x, y> 
-    """
-    def __init__(self, c, p):
-        """
-        Intialise class. 
-        """
-        self.c = c
-        self.p = p
-
-    def __call__(self, X1, X2):
-        """
-        Find kernel evaluation between two matrices X1 and X2 whose rows are
-        examples and have an identical number of columns.
-
-
-        :param X1: First set of examples.
-        :type X1: :class:`numpy.ndarray`
-
-        :param X2: Second set of examples.
-        :type X2: :class:`numpy.ndarray`
-        """
-
-        if X1.shape[1] != X2.shape[1]:
-            raise ValueError("Invalid matrix dimentions: " + str(X1.shape) + " " + str(X2.shape))
-
-        return (dot(X1, X2.T) + self.c) ** self.p
-
-class LinearKernel(PolyKernel):
-    def __init__(self):
-        super(LinearKernel, self).__init__(0, 1)
     
 class KCCA(object):
     """An implementation of Kernel Canonical Correlation Analysis. 
@@ -315,6 +221,7 @@ class KCCA(object):
         return rets
     
 if __name__ == "__main__":
+    from kernels import DiagGaussianKernel
     x1 = numpy.array([0.0764, 0.6345, 0.1609, 0.0384, 0.8558], ndmin=2).T
     x2 = numpy.array([0.7273, 0.4829, 0.3440, 0.4406, 0.8074], ndmin=2).T
     kernel = DiagGaussianKernel()

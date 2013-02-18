@@ -203,7 +203,7 @@ class KCCA(object):
             rets.append(res1)
             
         if X2 is not None:
-            Ktest = self.kernel1(X2, self.trainX2)            
+            Ktest = self.kernel2(X2, self.trainX2)            
             K = self.K2
             
             L, M = Ktest.shape

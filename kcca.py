@@ -2,16 +2,17 @@ import numpy
 from numpy import dot, eye, ones, zeros
 import scipy.linalg
 
+
 from kernel_icd import kernel_icd
-
-
     
 class KCCA(object):
     """An implementation of Kernel Canonical Correlation Analysis. 
     
     """
     def __init__(self, kernel1, kernel2, regularization, method = 'kettering_method',
-                 decomp = 'full', lrank = None):
+                 decomp = 'full', lrank = None,
+                 scaler1 = None,
+                 scaler2 = None):
 
         if decomp not in ('full', 'icd'):
             raise ValueError("Error: valid decom values are full or icd, received: "+str(decomp))
@@ -29,6 +30,16 @@ class KCCA(object):
         self.trainX1 = None
         self.trainX2 = None
         
+        if scaler1 is not None:
+            if hasattr(scaler1, "transform"):  #sklearn scaler        
+                self.scaler1 = scaler1.transform
+            else:  #assume callable function
+                self.scaler1 = scaler1
+        if scaler2 is not None:
+            if hasattr(scaler2, "transform"):  #sklearn scaler        
+                self.scaler2 = scaler2.transform
+            else:  #assume callable function
+                self.scaler2 = scaler2
 
     def full_standard_hardoon_method(self, K1, K2, reg):
         
@@ -83,8 +94,11 @@ class KCCA(object):
         #remove the mean in features space
         N = K1.shape[0]
         N0 = eye(N) - 1./N * ones(N)
-        K1 = dot(dot(N0,K1),N0)
-        K2 = dot(dot(N0,K2),N0)
+        
+        if self.scaler1 is None:
+            K1 = dot(dot(N0,K1),N0)
+        if self.scaler2 is None:
+            K2 = dot(dot(N0,K2),N0)
         
         R, D = self.method(K1, K2, self.reg)
         
@@ -100,8 +114,8 @@ class KCCA(object):
         alpha2 = alpha[N:]
         
         y1 = dot(K1, alpha1)
-        y2 = dot(K2, alpha2)
-
+        y2 = dot(K2, alpha2)        
+                
         self.alpha1 = alpha1
         self.alpha2 = alpha2
         
@@ -159,6 +173,12 @@ class KCCA(object):
         return (y1, y2, beta)                
     
     def fit(self, X1, X2):
+
+        if self.scaler1 is not None:
+            X1 = self.scaler1(X1)
+        if self.scaler2 is not None:
+            X2 = self.scaler2(X2)
+        
         self.trainX1 = X1
         self.trainX2 = X2
         
@@ -187,33 +207,47 @@ class KCCA(object):
         """
         rets = []
         if X1 is not None:
+            
+            if self.scaler1 is not None:
+                X1 = self.scaler1(X1)
+                
             Ktest = self.kernel1(X1, self.trainX1)            
             K = self.K1
             
-            L, M = Ktest.shape
-            ones_m = ones((M, M))
-            ones_mp = ones((L, M)) / M
-            
-            #features centering
-            K1 = (Ktest - dot(ones_mp, K)
-                  - dot(Ktest, ones_m) + dot(dot(ones_mp, K), ones_m)
-                  )
+            if self.scaler1 is None:
+                L, M = Ktest.shape
+                ones_m = ones((M, M))
+                ones_mp = ones((L, M)) / M
+                
+                #features centering
+                K1 = (Ktest - dot(ones_mp, K)
+                      - dot(Ktest, ones_m) + dot(dot(ones_mp, K), ones_m)
+                      )
+            else:
+                K1 = Ktest
             
             res1 =  dot(K1, self.alpha1)
             rets.append(res1)
             
         if X2 is not None:
+            
+            if self.scaler2 is not None:
+                X2 = self.scaler2(X2)
+                
             Ktest = self.kernel2(X2, self.trainX2)            
             K = self.K2
             
-            L, M = Ktest.shape
-            ones_m = ones((M, M))
-            ones_mp = ones((L, M)) / M
-
-            #features centering
-            K2 = (Ktest - dot(ones_mp, K)
-                  - dot(Ktest, ones_m) + dot(dot(ones_mp, K), ones_m)
-                  )
+            if self.scaler2 is None:
+                L, M = Ktest.shape
+                ones_m = ones((M, M))
+                ones_mp = ones((L, M)) / M
+    
+                #features centering
+                K2 = (Ktest - dot(ones_mp, K)
+                      - dot(Ktest, ones_m) + dot(dot(ones_mp, K), ones_m)
+                      )
+            else:
+                K2 = Ktest
             
             res2 =  dot(K2, self.alpha2)
             rets.append(res2)

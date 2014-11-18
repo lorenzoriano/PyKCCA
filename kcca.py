@@ -148,7 +148,9 @@ class KCCA(object):
         betas = betas[ind]
         betas = betas[::-1]
         
-        #fiding the components
+        n_samples = 0
+        
+        #finding the components
         if self.max_variance_rato < 1.0:
             n_samples = len(betas)        
             explained_variance = (betas ** 2) / n_samples

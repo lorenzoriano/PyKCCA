@@ -148,7 +148,7 @@ class KCCA(object):
         betas = betas[ind]
         betas = betas[::-1]
         
-        n_samples = 0
+        #n_samples = 0
         
         #finding the components
         if self.max_variance_rato < 1.0:
@@ -159,8 +159,8 @@ class KCCA(object):
             n_components = numpy.sum(ratio_cumsum < self.max_variance_rato) + 1
         else:
             #using all the dimensions
-            n_components = n_samples
-        
+            #n_components = n_samples
+            n_components = len(betas)
         alphas = alphas[:, ind]
         alpha = alphas[:, :n_components]
         

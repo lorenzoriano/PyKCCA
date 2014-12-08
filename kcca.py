@@ -158,6 +158,7 @@ class KCCA(object):
         else:
             #using all the dimensions
             n_components = len(betas)
+            
         alphas = alphas[:, ind]
         alpha = alphas[:, :n_components]
 

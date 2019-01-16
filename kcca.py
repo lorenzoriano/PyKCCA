@@ -5,8 +5,8 @@ from kernel_icd import kernel_icd
 from kernels import LinearKernel
 
 class KCCA(object):
-    """An implementation of Kernel Canonical Correlation Analysis. 
-    
+    """An implementation of Kernel Canonical Correlation Analysis.
+
     """
     def __init__(self, kernel1, kernel2, regularization, method = 'kettering_method',
                  decomp = 'full', lrank = None,
@@ -16,31 +16,31 @@ class KCCA(object):
 
         if decomp not in ('full', 'icd'):
             raise ValueError("Error: valid decom values are full or icd, received: "+str(decomp))
-        
+
         self.kernel1 = kernel1
         self.kernel2 = kernel2
         self.reg = regularization
         self.method = getattr(self, decomp + "_" + method)
-        
+
         self.decomp = decomp
         self.lrank = lrank
-        
+
         self.alpha1 = None
         self.alpha2 = None
         self.trainX1 = None
         self.trainX2 = None
         self.max_variance_rato = max_variance_ratio
-        
+
         if scaler1 is not None:
-            if hasattr(scaler1, "transform"):  #sklearn scaler        
+            if hasattr(scaler1, "transform"):  #sklearn scaler
                 self.scaler1 = scaler1.transform
             else:  #assume callable function
                 self.scaler1 = scaler1
         else:
             self.scaler1 = None
-        
+
         if scaler2 is not None:
-            if hasattr(scaler2, "transform"):  #sklearn scaler        
+            if hasattr(scaler2, "transform"):  #sklearn scaler
                 self.scaler2 = scaler2.transform
             else:  #assume callable function
                 self.scaler2 = scaler2
@@ -48,66 +48,66 @@ class KCCA(object):
             self.scaler2 = None
 
     def full_standard_hardoon_method(self, K1, K2, reg):
-        
+
         N = K1.shape[0]
         I = eye(N)
-        Z = numpy.zeros((N,N))    
-        
+        Z = numpy.zeros((N,N))
+
         R1 = numpy.c_[Z, dot(K1, K2)]
         R2 = numpy.c_[dot(K2, K1), Z]
         R =  numpy.r_[R1, R2]
-        
+
         D1 = numpy.c_[dot(K1, K1 + reg*I), Z]
         D2 = numpy.c_[Z, dot(K2, K2 + reg*I)]
         D = 0.5*numpy.r_[D1, D2]
-        
-        return (R, D)    
-            
+
+        return (R, D)
+
     def full_simplified_hardoon_method(self, K1, K2, reg):
-        
+
         N = K1.shape[0]
         I = eye(N)
-        Z = numpy.zeros((N,N))    
-        
+        Z = numpy.zeros((N,N))
+
         R1 = numpy.c_[Z, K2]
         R2 = numpy.c_[K1, Z]
         R =  numpy.r_[R1, R2]
-        
+
         D1 = numpy.c_[K1 + reg*I, Z]
         D2 = numpy.c_[Z, K2 + reg*I]
         D = numpy.r_[D1, D2]
-        
-        return (R, D)    
-            
+
+        return (R, D)
+
     def full_kettering_method(self, K1, K2, reg):
-        
+
         N = K1.shape[0]
         I = eye(N)
-        Z = numpy.zeros((N,N))    
-        
+        Z = numpy.zeros((N,N))
+
         R1 = numpy.c_[K1, K2]
         R2 = R1
         R = 1./2 * numpy.r_[R1, R2]
-        
+
         D1 = numpy.c_[K1 + reg*I, Z]
         D2 = numpy.c_[Z, K2 + reg*I]
         D = numpy.r_[D1, D2]
-        
-        return (R, D)        
+
+        return (R, D)
 
     #def kcca(self, K1, K2):
-        
+
         ##remove the mean in features space
         #N = K1.shape[0]
         #N0 = eye(N) - 1./N * ones(N)
-        
+
         #if self.scaler1 is None:
             #K1 = dot(dot(N0,K1),N0)
         #if self.scaler2 is None:
             #K2 = dot(dot(N0,K2),N0)
-        
+
         #R, D = self.method(K1, K2, self.reg)
-        
+
         ##solve generalized eigenvalues problem
         #betas, alphas = scipy.linalg.eig(R,D)
         #ind = numpy.argsort(numpy.real(betas))
@@ -115,30 +115,30 @@ class KCCA(object):
         #alpha = alphas[:, max_ind]
         #alpha = alpha/numpy.linalg.norm(alpha)
         #beta = numpy.real(betas[max_ind])
-        
+
         #alpha1 = alpha[:N]
         #alpha2 = alpha[N:]
-        
+
         #y1 = dot(K1, alpha1)
-        #y2 = dot(K2, alpha2)        
-                
+        #y2 = dot(K2, alpha2)
+
         #self.alpha1 = alpha1
         #self.alpha2 = alpha2
-        
-        #return (y1, y2, beta)        
+
+        #return (y1, y2, beta)
     def kcca(self, K1, K2):
-        
+
         #remove the mean in features space
         N = K1.shape[0]
         N0 = eye(N) - 1./N * ones(N)
-        
+
         if self.scaler1 is None:
             K1 = dot(dot(N0,K1),N0)
         if self.scaler2 is None:
             K2 = dot(dot(N0,K2),N0)
-        
+
         R, D = self.method(K1, K2, self.reg)
-        
+
         #solve generalized eigenvalues problem
         betas, alphas = scipy.linalg.eig(R,D)
 
@@ -147,67 +147,67 @@ class KCCA(object):
         ind = numpy.argsort(betas)
         betas = betas[ind]
         betas = betas[::-1]
-        
-        #fiding the components
+
+        #finding the components
         if self.max_variance_rato < 1.0:
-            n_samples = len(betas)        
+            n_samples = len(betas)
             explained_variance = (betas ** 2) / n_samples
             explained_variance_ratio = explained_variance / explained_variance.sum()
             ratio_cumsum = explained_variance_ratio.cumsum()
             n_components = numpy.sum(ratio_cumsum < self.max_variance_rato) + 1
         else:
             #using all the dimensions
-            n_components = n_samples
-        
+            n_components = len(betas)
+            
         alphas = alphas[:, ind]
         alpha = alphas[:, :n_components]
-        
+
         #alpha = alpha/numpy.linalg.norm(alpha)
         #making unit vectors
         alpha = alpha / (numpy.sum(numpy.abs(alpha)**2 ,axis=0)**(1./2))
-        
+
         alpha1 = alpha[:N, :]
         alpha2 = alpha[N:, :]
-        
+
         y1 = dot(K1, alpha1)
-        y2 = dot(K2, alpha2)        
-                
+        y2 = dot(K2, alpha2)
+
         self.alpha1 = alpha1
         self.alpha2 = alpha2
-        
+
         return (y1, y2, betas[0])
-    
+
     def icd_simplified_hardoon_method(self, G1, G2, reg):
         N1 = G1.shape[1]
         N2 = G2.shape[1]
-        
+
         Z11 = zeros((N1, N1))
         Z22 = zeros((N2, N2))
         Z12 = zeros((N1,N2))
-        
+
         I11 = eye(N1)
         I22 = eye(N2)
 
         R1 = numpy.c_[Z11, dot(G1.T, G2)]
         R2 = numpy.c_[dot(G2.T, G1), Z22]
         R =  numpy.r_[R1, R2]
-        
+
         D1 = numpy.c_[dot(G1.T, G1) + reg*I11, Z12]
         D2 = numpy.c_[Z12.T, dot(G2.T, G2) + reg*I22]
         D = numpy.r_[D1, D2]
-        
-        return (R, D)            
-    
+
+        return (R, D)
+
     def icd(self, G1, G2):
         """Incomplete Cholesky decomposition
         """
-        
+
         # remove mean. avoid standard calculation N0 = eye(N)-1/N*ones(N);
         G1 = G1 - numpy.array(numpy.mean(G1, 0), ndmin=2, copy=False)
         G2 = G2 - numpy.array(numpy.mean(G2, 0), ndmin=2, copy=False)
 
         R, D = self.method(G1, G2, self.reg)
-        
+
         #solve generalized eigenvalues problem
         betas, alphas = scipy.linalg.eig(R,D)
         ind = numpy.argsort(numpy.real(betas))
@@ -215,47 +215,47 @@ class KCCA(object):
         alpha = alphas[:, max_ind]
         alpha = alpha/numpy.linalg.norm(alpha)
         beta = numpy.real(betas[max_ind])
-        
+
         N1 = G1.shape[1]
         alpha1 = alpha[:N1]
         alpha2 = alpha[N1:]
-        
+
         y1 = dot(G1, alpha1)
         y2 = dot(G2, alpha2)
 
         self.alpha1 = alpha1
         self.alpha2 = alpha2
-        
-        return (y1, y2, beta)                
-    
+
+        return (y1, y2, beta)
+
     def fit(self, X1, X2):
 
         if self.scaler1 is not None:
             X1 = self.scaler1(X1)
         if self.scaler2 is not None:
             X2 = self.scaler2(X2)
-        
+
         self.trainX1 = X1
         self.trainX2 = X2
-        
+
         if self.decomp == "full":
             self.K1 = self.kernel1(X1, X1)
-            self.K2 = self.kernel2(X2, X2)            
+            self.K2 = self.kernel2(X2, X2)
             (y1, y2, beta) = self.kcca(self.K1, self.K2)
         else:
             # get incompletely decomposed kernel matrices. K \approx G*G'
             self.K1 = kernel_icd(X1, self.kernel1,  self.lrank)
-            self.K2 = kernel_icd(X2, self.kernel2,  self.lrank)            
+            self.K2 = kernel_icd(X2, self.kernel2,  self.lrank)
             (y1, y2, beta) = self.icd(self.K1, self.K2)
 
         self.y1_ = y1
         self.y2_ = y2
         self.beta_ = beta
         return self
-    
+
     def transform(self, X1 = None, X2 = None):
         """
-        
+
         Features centering taken from:
         Scholkopf, B., Smola, A., & Muller, K. R. (1998).
         Nonlinear component analysis as a kernel eigenvalue problem.
@@ -263,51 +263,51 @@ class KCCA(object):
         """
         rets = []
         if X1 is not None:
-            
+
             if self.scaler1 is not None:
                 X1 = self.scaler1(X1)
-                
-            Ktest = self.kernel1(X1, self.trainX1)            
+
+            Ktest = self.kernel1(X1, self.trainX1)
             K = self.K1
-            
+
             if self.scaler1 is None:
                 L, M = Ktest.shape
                 ones_m = ones((M, M))
                 ones_mp = ones((L, M)) / M
-                
+
                 #features centering
                 K1 = (Ktest - dot(ones_mp, K)
                       - dot(Ktest, ones_m) + dot(dot(ones_mp, K), ones_m)
                       )
             else:
                 K1 = Ktest
-            
+
             res1 =  dot(K1, self.alpha1)
             rets.append(res1)
-            
+
         if X2 is not None:
-            
+
             if self.scaler2 is not None:
                 X2 = self.scaler2(X2)
-                
-            Ktest = self.kernel2(X2, self.trainX2)            
+
+            Ktest = self.kernel2(X2, self.trainX2)
             K = self.K2
-            
+
             if self.scaler2 is None:
                 L, M = Ktest.shape
                 ones_m = ones((M, M))
                 ones_mp = ones((L, M)) / M
-    
+
                 #features centering
                 K2 = (Ktest - dot(ones_mp, K)
                       - dot(Ktest, ones_m) + dot(dot(ones_mp, K), ones_m)
                       )
             else:
                 K2 = Ktest
-            
+
             res2 =  dot(K2, self.alpha2)
             rets.append(res2)
-            
+
         return rets
 
 def _mean_and_std(X, axis=0, with_mean=True, with_std=True):
@@ -336,24 +336,24 @@ def _mean_and_std(X, axis=0, with_mean=True, with_std=True):
 
 class UnscaledKCCA(KCCA):
     def __init__(self, kernel1, kernel2, regularization,
-                 method = 'kettering_method',                 
+                 method = 'kettering_method',
                  max_variance_ratio = 1.0,
                  ) :
         super(UnscaledKCCA, self).__init__(kernel1, kernel2, regularization,
-                 method, 
+                 method,
                  'full', None,
                  None,
                  None,
                  max_variance_ratio)
-        
+
         #this is to avoid pickling problems
         self.method = method
-        
+
     def kcca(self, K1, K2):
-        
+
         method = getattr(self, "full_" + self.method)
         R, D = method(K1, K2, self.reg)
-        
+
         #solve generalized eigenvalues problem
         betas, alphas = scipy.linalg.eig(R,D)
 
@@ -362,9 +362,9 @@ class UnscaledKCCA(KCCA):
         ind = numpy.argsort(betas)
         betas = betas[ind]
         betas = betas[::-1]
-        
+
         #fiding the components
-        n_samples = len(betas)        
+        n_samples = len(betas)
         if self.max_variance_rato < 1.0:
             explained_variance = (betas ** 2) / n_samples
             explained_variance_ratio = explained_variance / explained_variance.sum()
@@ -373,21 +373,21 @@ class UnscaledKCCA(KCCA):
         else:
             #using all the dimensions
             n_components = n_samples
-        
+
         alphas = alphas[:, ind]
         alpha = alphas[:, :n_components]
-        
+
         #alpha = alpha/numpy.linalg.norm(alpha)
         #making unit vectors
         alpha = alpha / (numpy.sum(numpy.abs(alpha)**2 ,axis=0)**(1./2))
-        
+
         N = K1.shape[0]
         alpha1 = alpha[:N, :]
         alpha2 = alpha[N:, :]
-        
+
         y1 = dot(K1, alpha1)
-        y2 = dot(K2, alpha2)        
-                
+        y2 = dot(K2, alpha2)
+
         self.alpha1 = alpha1
         self.alpha2 = alpha2
         self.y1_ = y1
@@ -396,11 +396,11 @@ class UnscaledKCCA(KCCA):
         self.betas_ = betas
 
         return (y1, y2, betas[0])
-    
+
     def fit(self, X1, X2, K1_args = None, K2_args=None):
         self.trainX1 = X1
         self.trainX2 = X2
-        
+
         if K1_args is not None:
             self.K1 = self.kernel1(X1, X1, K1_args)
         else:
@@ -408,9 +408,9 @@ class UnscaledKCCA(KCCA):
         if K2_args is not None:
             self.K2 = self.kernel2(X2, X2, K2_args)
         else:
-            self.K2 = self.kernel2(X2, X2)            
+            self.K2 = self.kernel2(X2, X2)
         (y1, y2, beta) = self.kcca(self.K1, self.K2)
-            
+
         self.y1_ = y1
         self.y2_ = y2
         self.beta_ = beta
@@ -428,28 +428,28 @@ class UnscaledKCCA(KCCA):
                 n_dims = numpy.ceil(n_dims_frac * self.alpha1.shape[1])
             else:
                 n_dims = n_dims_frac
-            if K1_args is not None:    
+            if K1_args is not None:
                 Ktest = self.kernel1(X1, self.trainX1, K1_args)
             else:
                 Ktest = self.kernel1(X1, self.trainX1)
-            
+
             res1 =  dot(Ktest, self.alpha1[:, :n_dims])
             rets.append(res1)
-            
+
         if X2 is not None:
             if type(n_dims_frac) is float:
                 n_dims = numpy.ceil(n_dims_frac * self.alpha2.shape[1])
             else:
                 n_dims = n_dims_frac
-            if K2_args is not None:    
+            if K2_args is not None:
                 Ktest = self.kernel2(X2, self.trainX2, K2_args)
             else:
                 Ktest = self.kernel2(X2, self.trainX2)
             K2 = self.K2
-            
+
             res2 =  dot(Ktest, self.alpha2[:, :n_dims])
             rets.append(res2)
-            
+
         return rets
 
 if __name__ == "__main__":
@@ -463,15 +463,13 @@ if __name__ == "__main__":
                     method='kettering_method',
                     scaler1=lambda x:x,
                     scaler2=lambda x:x).fit(x1,x2)
-    
+
     print "Done ",  cca.beta_
 
     orig_y1 = cca.y1_
     orig_y2 = cca.y2_
-    
+
     print "Trying to test"
     y1, y2 = cca.transform(x1, x2)
     print numpy.allclose(y1, orig_y1)
     print numpy.allclose(y2, orig_y2)
-    
-    
